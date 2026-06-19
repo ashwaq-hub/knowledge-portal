@@ -765,7 +765,9 @@ test.describe('Admin / CMS', () => {
     expect(Array.isArray(list)).toBe(true);
     expect(list.some((e: { title: string }) => e.title === 'CMS Test Entry Updated')).toBe(true);
 
-    const deleteResp = await page.request.delete(`/api/admin/entries/${slug}`);
+    const deleteResp = await page.request.delete(`/api/admin/entries/${slug}`, {
+      data: {},
+    });
     expect(deleteResp.status()).toBe(200);
   });
 });
