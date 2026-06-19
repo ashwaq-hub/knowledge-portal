@@ -1,6 +1,7 @@
+import fs from 'node:fs';
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { readEntryFromDisk, writeEntryFile, deleteEntryFile, getEntryPath, type EntryFormData } from '../../../../lib/content';
+import { readEntryFromDisk, writeEntryFile, deleteEntryFile, getEntryPath, type EntryFormData, ENTRIES_DIR } from '../../../../lib/content';
 
 export const GET: APIRoute = async ({ params, locals }) => {
   if (!locals.currentUser) {
@@ -81,9 +82,12 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
   const entrySlug = parts.pop()!;
   const category = parts.join('/');
 
+  const filePath = getEntryPath(category, entrySlug);
+  const exists = fs.existsSync(filePath);
+
   const ok = deleteEntryFile(category, entrySlug);
   if (!ok) {
-    return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+    return new Response(JSON.stringify({ error: 'Not found', path: filePath, exists, slug, category, entrySlug, entriesDir: ENTRIES_DIR }), { status: 404 });
   }
 
   return new Response(JSON.stringify({ success: true }), {

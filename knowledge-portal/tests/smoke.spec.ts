@@ -768,6 +768,8 @@ test.describe('Admin / CMS', () => {
     const deleteResp = await page.request.delete(`/api/admin/entries/${slug}`, {
       data: {},
     });
+    const deleteText = await deleteResp.text();
+    console.log('DELETE status:', deleteResp.status(), 'body:', deleteText);
     expect(deleteResp.status()).toBe(200);
   });
 });
