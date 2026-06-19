@@ -1,0 +1,40 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+const user = Astro.locals.currentUser;
+if (!user) {
+  return Astro.redirect('/login');
+}
+---
+
+<BaseLayout title="Dashboard">
+  <div class="admin-page">
+    <div class="admin-header">
+      <h1>Dashboard</h1>
+      <form method="POST" action="/api/auth/logout" id="logoutForm">
+        <button type="submit" class="btn">Log out</button>
+      </form>
+    </div>
+    <p>Welcome, <strong>{user.username}</strong>.</p>
+    <div class="admin-cards">
+      <div class="admin-card">
+        <h3>Entries</h3>
+        <p>Create, edit, and manage entries.</p>
+        <a href="/admin/entries" class="btn">Manage entries</a>
+      </div>
+      <div class="admin-card">
+        <h3>Profile</h3>
+        <p>{user.email}</p>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style is:global>
+  .admin-page { padding: 2rem; max-width: 800px; margin: 0 auto; }
+  .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .admin-header h1 { margin: 0; }
+  .admin-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .admin-card { background: var(--card-bg, #fff); border: 1px solid var(--border, #e0e0e0); border-radius: 8px; padding: 1.5rem; }
+  .admin-card h3 { margin: 0 0 0.5rem; }
+  .admin-card p { margin: 0 0 1rem; color: var(--text-muted, #666); font-size: 0.875rem; }
+</style>

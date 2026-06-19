@@ -1,0 +1,217 @@
+---
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import { readEntryFromDisk, getEntryPath } from '../../../../lib/content';
+
+const user = Astro.locals.currentUser;
+if (!user) {
+  return Astro.redirect('/login');
+}
+
+const slug = Astro.params.slug as string;
+if (!slug) {
+  return Astro.redirect('/admin/entries');
+}
+
+const slugParts = slug.split('/');
+const entrySlugName = slugParts.pop()!;
+const entryCategory = slugParts.join('/');
+const onDisk = readEntryFromDisk(getEntryPath(entryCategory, entrySlugName));
+if (!onDisk) {
+  return Astro.redirect('/admin/entries');
+}
+const entry = onDisk.data;
+
+const categories = [
+  'values', 'life-lessons', 'career-craft', 'decision-frameworks',
+  'practical-skills', 'financial-wisdom', 'health-wellness',
+  'book-library', 'family-history', 'letters-to-future',
+];
+---
+
+<BaseLayout title={`Edit: ${entry.title}`}>
+  <div class="admin-page">
+    <div class="admin-header">
+      <h1>Edit: {entry.title}</h1>
+      <a href="/admin/entries" class="btn">&larr; Back</a>
+    </div>
+
+    <div id="editor-msg" class="editor-msg"></div>
+
+    <form id="entry-form" method="POST" action={`/api/admin/entries/${slug}`} class="editor-form" data-method="PUT">
+      <div class="editor-main">
+        <div class="editor-fields">
+          <div class="field">
+            <label for="entry-title" class="field-label">Title</label>
+            <input type="text" id="entry-title" name="title" class="field-input" required value={entry.title} />
+          </div>
+
+          <div class="field">
+            <label for="entry-slug" class="field-label">Slug</label>
+            <input type="text" id="entry-slug" name="slug" class="field-input" value={slug.split('/').pop()} disabled />
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="entry-category" class="field-label">Category</label>
+              <select id="entry-category" name="category" class="field-select" required>
+                {categories.map(c => (
+                  <option value={c} selected={c === entry.category}>{c.replace(/-/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="entry-maturity" class="field-label">Maturity</label>
+              <select id="entry-maturity" name="maturity" class="field-select">
+                <option value="draft" selected={entry.maturity === 'draft'}>Draft</option>
+                <option value="reviewed" selected={entry.maturity === 'reviewed'}>Reviewed</option>
+                <option value="final" selected={entry.maturity === 'final'}>Final</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="entry-tags" class="field-label">Tags (comma-separated)</label>
+            <input type="text" id="entry-tags" name="tags" class="field-input" value={entry.tags.join(', ')} />
+          </div>
+
+          <div class="field">
+            <label for="entry-excerpt" class="field-label">Excerpt</label>
+            <textarea id="entry-excerpt" name="excerpt" class="field-textarea" rows="2">{entry.excerpt || ''}</textarea>
+          </div>
+        </div>
+
+        <div class="editor-body-section">
+          <div class="editor-body-header">
+            <span class="field-label">Body (Markdown)</span>
+          </div>
+          <div class="editor-pane">
+            <textarea id="entry-body" name="body" class="field-textarea editor-textarea" rows="20">{entry.body || ''}</textarea>
+            <div class="preview-pane">
+              <div class="preview-header">Preview</div>
+              <div id="preview-content" class="preview-content"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-danger" id="delete-btn">Delete</button>
+          <a href="/admin/entries" class="btn">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="delete-modal" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h2>Delete entry?</h2>
+      <p>Are you sure you want to delete "<strong>{entry.title}</strong>"? This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-danger" id="confirm-delete">Delete</button>
+        <button class="btn" id="cancel-delete">Cancel</button>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  import '../../../../scripts/editor.ts';
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const deleteBtn = document.getElementById('delete-btn');
+    const modal = document.getElementById('delete-modal');
+    const confirmBtn = document.getElementById('confirm-delete');
+    const cancelBtn = document.getElementById('cancel-delete');
+
+    if (deleteBtn && modal) {
+      deleteBtn.addEventListener('click', function() {
+        modal.style.display = 'flex';
+      });
+
+      cancelBtn?.addEventListener('click', function() {
+        modal.style.display = 'none';
+      });
+
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) modal.style.display = 'none';
+      });
+
+      confirmBtn?.addEventListener('click', async function() {
+        const slug = window.location.pathname.replace('/admin/entries/edit/', '');
+        try {
+          const res = await fetch(`/api/admin/entries/${slug}`, { method: 'DELETE' });
+          if (res.ok) {
+            window.location.href = '/admin/entries';
+          } else {
+            const msg = document.getElementById('editor-msg');
+            if (msg) {
+              msg.innerHTML = '<span class="editor-msg-error">Failed to delete entry</span>';
+              msg.className = 'editor-msg editor-msg--visible';
+            }
+          }
+        } catch {
+          const msg = document.getElementById('editor-msg');
+          if (msg) {
+            msg.innerHTML = '<span class="editor-msg-error">Network error</span>';
+            msg.className = 'editor-msg editor-msg--visible';
+          }
+        }
+      });
+    }
+  });
+</script>
+
+<style is:global>
+  .admin-page { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+  .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .admin-header h1 { margin: 0; font-size: 1.25rem; }
+  .editor-msg { margin-bottom: 1rem; }
+  .editor-msg--visible { display: block; }
+  .editor-msg-success { color: #16a34a; font-size: 0.875rem; font-weight: 500; }
+  .editor-msg-error { color: #dc2626; font-size: 0.875rem; font-weight: 500; }
+  .editor-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  .editor-main { display: flex; flex-direction: column; gap: 1.5rem; }
+  .editor-fields { display: flex; flex-direction: column; gap: 1rem; max-width: 640px; }
+  .field { display: flex; flex-direction: column; gap: 0.25rem; }
+  .field-row { display: flex; gap: 1rem; }
+  .field-row .field { flex: 1; }
+  .field-label { font-size: 0.8125rem; font-weight: 600; color: var(--color-text); }
+  .field-input, .field-select, .field-textarea { font-size: 0.875rem; font-family: inherit; padding: 0.5rem 0.75rem; color: var(--color-text); background: var(--color-bg); border: 1.5px solid var(--color-border); border-radius: 8px; transition: border-color 0.15s; }
+  .field-input:focus, .field-select:focus, .field-textarea:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent-alpha); }
+  .field-select { cursor: pointer; }
+  .editor-body-section { display: flex; flex-direction: column; gap: 0.5rem; }
+  .editor-body-header { display: flex; justify-content: space-between; align-items: center; }
+  .editor-pane { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; min-height: 400px; }
+  .editor-textarea { resize: vertical; min-height: 400px; font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; line-height: 1.65; tab-size: 2; }
+  .preview-pane { border: 1.5px solid var(--color-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+  .preview-header { padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); }
+  .preview-content { padding: 1rem; overflow-y: auto; font-size: 0.875rem; line-height: 1.65; }
+  .preview-content h1, .preview-content h2, .preview-content h3, .preview-content h4, .preview-content h5, .preview-content h6 { margin: 1rem 0 0.5rem; }
+  .preview-content h1 { font-size: 1.25rem; }
+  .preview-content h2 { font-size: 1.125rem; }
+  .preview-content h3 { font-size: 1rem; }
+  .preview-content p { margin: 0 0 0.75rem; color: var(--color-text); }
+  .preview-content code { background: var(--color-bg-secondary); padding: 0.125rem 0.375rem; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; }
+  .preview-content blockquote { border-left: 3px solid var(--color-accent); padding-left: 1rem; color: var(--color-text-muted); margin: 0.5rem 0; }
+  .preview-content ul, .preview-content ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  .preview-content li { margin-bottom: 0.25rem; }
+  .preview-empty { color: var(--color-text-muted); font-style: italic; }
+  .editor-actions { display: flex; gap: 0.75rem; align-items: center; }
+  .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.8125rem; font-weight: 500; text-decoration: none; border: 1px solid var(--color-border); color: var(--color-text); background: var(--color-bg); cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: var(--color-bg-secondary); }
+  .btn-primary { background: #7c3aed; color: white; border-color: #7c3aed; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-danger { background: #dc2626; color: white; border-color: #dc2626; }
+  .btn-danger:hover { background: #b91c1c; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+  .modal { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 12px; padding: 2rem; max-width: 420px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+  .modal h2 { margin: 0 0 0.75rem; font-size: 1.125rem; }
+  .modal p { color: var(--color-text-muted); font-size: 0.875rem; margin: 0 0 1.5rem; }
+  .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+  [data-theme="dark"] .preview-content code { background: #1c1917; }
+  @media (max-width: 768px) {
+    .editor-pane { grid-template-columns: 1fr; }
+    .field-row { flex-direction: column; gap: 0.5rem; }
+  }
+</style>

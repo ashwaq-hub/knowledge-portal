@@ -1,0 +1,38 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import { categories } from '../config';
+
+interface Props {
+  category: string;
+  title?: string;
+  description?: string;
+}
+
+const { category, title, description } = Astro.props;
+const categoryInfo = categories.find(c => c.id === category);
+
+const pageTitle = title || categoryInfo?.name || category;
+const pageDesc = description || categoryInfo?.description || '';
+
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Categories', href: '/entries' },
+  { label: pageTitle, href: Astro.url.pathname },
+];
+---
+
+<BaseLayout title={pageTitle} description={pageDesc}>
+  <div class="container">
+    <Breadcrumbs items={breadcrumbs} />
+
+    <header class="page-header">
+      <h1 class="page-title">
+        {categoryInfo?.icon} {pageTitle}
+      </h1>
+      {pageDesc && <p class="page-description">{pageDesc}</p>}
+    </header>
+
+    <slot />
+  </div>
+</BaseLayout>

@@ -1,0 +1,287 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import EntryCard from '../components/EntryCard.astro';
+import { getCollection } from 'astro:content';
+import { categories, siteConfig } from '../config';
+
+const allEntries = await getCollection('entries');
+
+const byCategory = categories.reduce((acc, cat) => {
+  acc[cat.id] = allEntries.filter(e => e.data.category === cat.id).length;
+  return acc;
+}, {} as Record<string, number>);
+
+const tagMap = allEntries.reduce((acc, entry) => {
+  entry.data.tags.forEach(tag => {
+    if (!acc.has(tag)) acc.set(tag, []);
+    acc.get(tag)!.push(entry);
+  });
+  return acc;
+}, new Map<string, typeof allEntries>());
+
+const sortedTags = [...tagMap.entries()].sort((a, b) => b[1].length - a[1].length);
+
+const maturityCounts = { draft: 0, reviewed: 0, final: 0 };
+allEntries.forEach(e => { maturityCounts[e.data.maturity]++; });
+
+const totalWords = allEntries.reduce((sum, e) => sum + (e.body?.length || 0), 0);
+
+const recentEntries = allEntries
+  .sort((a, b) => new Date(b.data.date_created).getTime() - new Date(a.data.date_created).getTime())
+  .slice(0, 5);
+
+const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1].length : 1;
+---
+
+<BaseLayout>
+  <div class="container">
+    <section class="hero">
+      <h1 class="hero-title">{siteConfig.title}</h1>
+      <p class="hero-subtitle">
+        A personal knowledge archive — built to last, designed to share.
+        Wisdom, stories, and lessons gathered over a lifetime.
+      </p>
+      <div class="hero-actions">
+        <a href="/entries" class="btn btn-primary">Browse All Entries</a>
+        <a href="/search" class="btn btn-outline">Search Knowledge</a>
+      </div>
+    </section>
+
+    <section class="dashboard-stats">
+      <div class="stat-card">
+        <div class="stat-value">{allEntries.length}</div>
+        <div class="stat-label">Total Entries</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{categories.length}</div>
+        <div class="stat-label">Categories</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{sortedTags.length}</div>
+        <div class="stat-label">Unique Tags</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{maturityCounts.final + maturityCounts.reviewed}/{allEntries.length}</div>
+        <div class="stat-label">Reviewed/Final</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{allEntries.filter(e => e.data.priority === 'high' || e.data.priority === 'critical').length}</div>
+        <div class="stat-label">High Priority</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{totalWords.toLocaleString()}</div>
+        <div class="stat-label">Total Characters</div>
+      </div>
+    </section>
+
+    <section class="dashboard-section">
+      <h2 class="section-title">Categories</h2>
+      <div class="category-grid">
+        {categories.map(category => (
+          <a href={`/entries/${category.id}`} class="category-card">
+            <div class="category-card-icon">{category.icon}</div>
+            <h3 class="category-card-name">{category.name}</h3>
+            <p class="category-card-desc">{category.description}</p>
+            <div class="category-card-count">{byCategory[category.id] || 0} entries</div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    {sortedTags.length > 0 && (
+      <section class="dashboard-section">
+        <div class="section-header">
+          <h2 class="section-title">Popular Tags</h2>
+          <a href="/tags" class="section-link">View all tags</a>
+        </div>
+        <div class="tag-cloud">
+          {sortedTags.slice(0, 30).map(([tag, entries]) => {
+            const weight = entries.length / maxTagCount;
+            const fontSize = 0.75 + weight * 1.25;
+            return (
+              <a href={`/tags/${encodeURIComponent(tag)}`} class="tag-cloud-item" style={`font-size: ${fontSize.toFixed(2)}rem;`} title={`${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}>
+                #{tag}
+                <span class="tag-cloud-count">{entries.length}</span>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+    )}
+
+    <section class="dashboard-section">
+      <div class="section-header">
+        <h2 class="section-title">Recent Entries</h2>
+        <a href="/entries" class="section-link">View all</a>
+      </div>
+      <div class="entry-list">
+        {recentEntries.map(entry => (
+          <EntryCard entry={entry} />
+        ))}
+      </div>
+    </section>
+
+    <section class="dashboard-section dashboard-links">
+      <a href="/rss.xml" class="feed-link">RSS Feed</a>
+      <span class="feed-sep">·</span>
+      <a href="/atom.xml" class="feed-link">Atom Feed</a>
+      <span class="feed-sep">·</span>
+      <a href="/graph" class="feed-link">Knowledge Graph</a>
+      <span class="feed-sep">·</span>
+      <a href="/mindmap" class="feed-link">Mindmap</a>
+      <span class="feed-sep">·</span>
+      <a href="/timeline" class="feed-link">Timeline</a>
+      <span class="feed-sep">·</span>
+      <a href="/export" class="feed-link">Export</a>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .hero-actions {
+    display: flex;
+    gap: var(--space-4);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    font-size: var(--text-sm);
+    transition: all var(--transition-fast);
+  }
+  .btn-primary {
+    background: var(--color-accent);
+    color: white;
+  }
+  .btn-primary:hover {
+    background: var(--color-accent-hover);
+    color: white;
+  }
+  .btn-outline {
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+  }
+  .btn-outline:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-4);
+    margin: var(--space-12) 0;
+  }
+
+  .stat-card {
+    padding: var(--space-5);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    border: 1px solid var(--color-border-light);
+  }
+
+  .stat-value {
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    color: var(--color-accent);
+  }
+
+  .stat-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+  }
+
+  .dashboard-section {
+    margin-top: var(--space-12);
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-6);
+  }
+
+  .section-title {
+    font-size: var(--text-2xl);
+    margin-bottom: var(--space-6);
+  }
+
+  .section-link {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .section-link:hover {
+    color: var(--color-accent);
+  }
+
+  .tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: center;
+    padding: var(--space-4) 0;
+    line-height: 1.8;
+  }
+
+  .tag-cloud-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-text);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .tag-cloud-item:hover {
+    color: var(--color-accent);
+    background: var(--color-bg-secondary);
+    transform: translateY(-1px);
+  }
+
+  .tag-cloud-count {
+    font-size: 0.65em;
+    color: var(--color-text-light);
+    font-weight: 400;
+  }
+
+  .category-card-count {
+    margin-top: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .dashboard-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .feed-link {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .feed-link:hover {
+    color: var(--color-accent);
+  }
+
+  .feed-sep {
+    color: var(--color-text-light);
+  }
+
+  .section-header + .tag-cloud {
+    margin-top: calc(-1 * var(--space-4));
+  }
+</style>

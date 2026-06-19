@@ -1,0 +1,98 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { categories } from '../config';
+
+const allEntries = await getCollection('entries');
+
+const mindmapEntries = allEntries.map(e => ({
+  id: e.id,
+  title: e.data.title,
+  category: e.data.category,
+  tags: e.data.tags,
+  date: e.data.date_created.toISOString(),
+}));
+
+const mindmapData = { entries: mindmapEntries, categories };
+const mindmapDataEncoded = encodeURIComponent(JSON.stringify(mindmapData));
+---
+
+<BaseLayout title="Mindmap" description="Quick visual overview of all knowledge subjects">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">Mindmap</h1>
+      <p class="page-description">
+        Quick glance at {allEntries.length} entries across {categories.length} categories — scroll to zoom, hover for details, click entries to open
+      </p>
+    </header>
+
+    <div id="mindmap-container" class="mindmap-container">
+      <div id="mindmap-loading" class="mindmap-loading">
+        <div class="loading-spinner"></div>
+        <p>Building mindmap...</p>
+      </div>
+    </div>
+
+    <div class="mindmap-zoom-hint">
+      Scroll to zoom · Drag to pan · Click an entry to open
+    </div>
+  </div>
+</BaseLayout>
+
+<div id="mindmap-data-store" data-value={mindmapDataEncoded} style="display:none"></div>
+
+<script>
+  import { renderMindmap } from '../scripts/mindmap-render';
+
+  const data = JSON.parse(
+    decodeURIComponent(document.getElementById('mindmap-data-store')?.getAttribute('data-value') || '{}')
+  );
+
+  const container = document.getElementById('mindmap-container');
+  const loading = document.getElementById('mindmap-loading');
+
+  if (loading) loading.style.display = 'none';
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => renderMindmap('mindmap-container', data));
+  } else {
+    renderMindmap('mindmap-container', data);
+  }
+</script>
+
+<style>
+  .mindmap-container {
+    width: 100%;
+    height: 600px;
+    min-height: 50vh;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    position: relative;
+  }
+
+  @media (max-width: 640px) {
+    .mindmap-container {
+      height: 60vh;
+      max-height: 450px;
+    }
+  }
+
+  .mindmap-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--space-4);
+    color: var(--color-text-muted);
+  }
+
+  .mindmap-zoom-hint {
+    text-align: center;
+    font-size: var(--text-xs);
+    color: var(--color-text-light);
+    margin-top: var(--space-3);
+  }
+</style>

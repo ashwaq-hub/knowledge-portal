@@ -1,0 +1,222 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { categories } from '../../config';
+import { generatePDFHTML } from '../../lib/pdf-generator';
+import { buildPDFSections } from '../../lib/pdf-generator';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const allEntries = await getCollection('entries');
+  const sections = buildPDFSections(allEntries);
+
+  return sections.map(s => {
+    const cat = categories.find(c => s.title.includes(c.name));
+    if (!cat) return { params: { slug: undefined } };
+    return { params: { slug: cat.id } };
+  }).filter(p => p.params.slug);
+}
+
+const { slug } = Astro.params;
+const allEntries = await getCollection('entries');
+const sections = buildPDFSections(allEntries);
+
+const category = categories.find(c => c.id === slug);
+const section = sections.find(s => s.title.includes(category?.name || ''));
+
+if (!category || !section) {
+  return Astro.redirect('/export', 302);
+}
+
+const pdfHTML = generatePDFHTML([section]);
+const totalEntries = section.entries.length;
+---
+
+<BaseLayout title={`Export: ${category.name}`} description={`PDF export for ${category.name}`}>
+  <div class="container">
+    <header class="page-header">
+      <p class="breadcrumbs">
+        <a href="/export" class="breadcrumb-link">Export</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-current">{category.name}</span>
+      </p>
+      <h1 class="page-title">{category.icon} {category.name}</h1>
+      <p class="page-description">
+        {totalEntries} entr{totalEntries === 1 ? 'y' : 'ies'} — generated for print/PDF
+      </p>
+    </header>
+
+    <div class="export-actions">
+      <button class="export-button" onclick="window.print()">
+        Print / Save PDF
+      </button>
+      <a href="/export" class="export-button export-button--secondary">
+        ← Back to Export
+      </a>
+    </div>
+
+    <div class="export-preview">
+      {section.entries.map(entry => (
+        <article class="export-preview-entry">
+          <h2 class="export-preview-title">{entry.data.title}</h2>
+          <div class="export-preview-meta">
+            <span>{new Date(entry.data.date_created).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            {entry.data.tags.length > 0 && (
+              <span>Tags: {entry.data.tags.join(', ')}</span>
+            )}
+            {entry.data.maturity && (
+              <span>Status: {entry.data.maturity}</span>
+            )}
+          </div>
+          {entry.data.excerpt && <p class="export-preview-excerpt">{entry.data.excerpt}</p>}
+        </article>
+      ))}
+    </div>
+
+    <div class="export-pdf-data" style="display: none;">{pdfHTML}</div>
+
+    <div class="export-print-instructions">
+      <h3>Print / PDF Instructions</h3>
+      <ol>
+        <li>Click "Print / Save PDF" above</li>
+        <li>Select "Save as PDF" as the destination</li>
+        <li>Choose A4 or Letter paper size</li>
+        <li>Check "Background graphics" for best results</li>
+        <li>Save the PDF</li>
+      </ol>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .breadcrumb-separator {
+    color: var(--color-text-light);
+  }
+
+  .breadcrumb-link {
+    color: var(--color-text-muted);
+  }
+
+  .breadcrumb-link:hover {
+    color: var(--color-accent);
+  }
+
+  .breadcrumb-current {
+    color: var(--color-text);
+  }
+
+  .export-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-bottom: var(--space-8);
+    flex-wrap: wrap;
+  }
+
+  .export-button {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-3) var(--space-6);
+    background: var(--color-accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--transition-fast);
+  }
+
+  .export-button:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .export-button--secondary {
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .export-button--secondary:hover {
+    background: var(--color-border);
+    color: var(--color-text);
+  }
+
+  .export-preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+  }
+
+  .export-preview-entry {
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+  }
+
+  .export-preview-title {
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+
+  .export-preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-2);
+  }
+
+  .export-preview-excerpt {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin: 0;
+  }
+
+  .export-print-instructions {
+    padding: var(--space-4);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .export-print-instructions h3 {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    margin-bottom: var(--space-2);
+    color: var(--color-text);
+  }
+
+  .export-print-instructions ol {
+    padding-left: var(--space-5);
+    line-height: 1.8;
+  }
+
+  @media print {
+    .nav, .footer, .export-actions, .export-print-instructions, .page-header {
+      display: none;
+    }
+    .export-preview-entry {
+      border: none;
+      padding: 0;
+      page-break-inside: avoid;
+    }
+  }
+</style>

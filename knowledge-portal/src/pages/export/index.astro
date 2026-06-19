@@ -1,0 +1,156 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { categories } from '../../config';
+import { buildPDFSections } from '../../lib/pdf-generator';
+
+const allEntries = await getCollection('entries');
+const sections = buildPDFSections(allEntries);
+const totalEntries = allEntries.length;
+---
+
+<BaseLayout title="Export" description="Export entries to PDF">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">Export Knowledge Archive</h1>
+      <p class="page-description">
+        Generate a print-ready PDF of your complete knowledge archive ({totalEntries} entries)
+      </p>
+    </header>
+
+    {totalEntries > 0 ? (
+      <div class="export-options">
+        <div class="export-card">
+          <div class="export-card-icon">📄</div>
+          <h3 class="export-card-title">Complete Archive</h3>
+          <p class="export-card-desc">All entries across all categories, sorted and formatted for printing.</p>
+          <div class="export-card-meta">
+            {sections.map(s => (
+              <span class="export-card-stat">{s.entries.length} in {s.title}</span>
+            ))}
+          </div>
+          <button class="export-button" onclick="window.print()">
+            Print / Save PDF
+          </button>
+        </div>
+
+        <div class="export-card">
+          <div class="export-card-icon">📂</div>
+          <h3 class="export-card-title">Export by Category</h3>
+          <p class="export-card-desc">Select a specific category to export as a focused document.</p>
+          <div style="display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-4) 0;">
+            {sections.map(s => {
+              const cat = categories.find(c => s.title.includes(c.name));
+              return (
+              <a href={`/export/${cat?.id || ''}`} class="export-category-link">
+                {s.title}
+                <span style="color: var(--color-text-light); font-size: var(--text-xs);">{s.entries.length}</span>
+              </a>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div class="empty-state">
+        <div class="empty-state-icon">📝</div>
+        <h3 class="empty-state-title">No entries yet</h3>
+        <p>Add entries to your knowledge archive before exporting.</p>
+      </div>
+    )}
+
+    <div style="margin-top: var(--space-8); padding: var(--space-4); background: var(--color-bg-secondary); border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted);">
+      <h3 style="font-size: var(--text-base); margin-bottom: var(--space-2); color: var(--color-text);">Print Instructions</h3>
+      <ol style="padding-left: var(--space-5);">
+        <li>Click "Print / Save PDF" above</li>
+        <li>In the print dialog, select "Save as PDF" as the destination</li>
+        <li>Choose A4 or Letter paper size</li>
+        <li>Check "Background graphics" for best results</li>
+        <li>Save the PDF to your desired location</li>
+      </ol>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .export-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--space-6);
+    margin: var(--space-6) 0;
+  }
+
+  .export-card {
+    padding: var(--space-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+  }
+
+  .export-card-icon {
+    font-size: var(--text-3xl);
+    margin-bottom: var(--space-3);
+  }
+
+  .export-card-title {
+    font-size: var(--text-xl);
+    font-family: var(--font-serif);
+    margin-bottom: var(--space-2);
+  }
+
+  .export-card-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .export-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .export-card-stat {
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+  }
+
+  .export-button {
+    display: block;
+    width: 100%;
+    padding: var(--space-3);
+    background: var(--color-accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    transition: background var(--transition-fast);
+  }
+
+  .export-button:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .export-category-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    transition: border-color var(--transition-fast);
+  }
+
+  .export-category-link:hover {
+    border-color: var(--color-accent);
+  }
+</style>

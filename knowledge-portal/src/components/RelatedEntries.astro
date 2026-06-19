@@ -1,0 +1,35 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { categories } from '../config';
+
+interface Props {
+  entries: CollectionEntry<'entries'>[];
+  title?: string;
+}
+
+const { entries, title = 'Related Entries' } = Astro.props;
+---
+
+{entries.length > 0 && (
+  <aside class="entry-related">
+    <h2 class="entry-related-title">{title}</h2>
+    <div class="entry-list">
+      {entries.map(entry => {
+        const categoryInfo = categories.find(c => c.id === entry.data.category);
+        return (
+          <a href={`/entries/${entry.id}`} class="entry-card">
+            <div class="entry-card-header">
+              <h3 class="entry-card-title">{entry.data.title}</h3>
+              <span class="entry-card-date">
+                {new Date(entry.data.date_created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            </div>
+            {entry.data.excerpt && (
+              <p class="entry-card-excerpt">{entry.data.excerpt}</p>
+            )}
+          </a>
+        );
+      })}
+    </div>
+  </aside>
+)}

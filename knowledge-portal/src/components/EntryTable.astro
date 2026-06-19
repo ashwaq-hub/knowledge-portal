@@ -1,0 +1,207 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { categories } from '../config';
+
+interface Props {
+  entries: CollectionEntry<'entries'>[];
+}
+
+const { entries } = Astro.props;
+---
+
+<div class="table-wrapper">
+  <table class="entry-table">
+    <thead>
+      <tr>
+        <th class="col-title">Title</th>
+        <th class="col-category">Category</th>
+        <th class="col-tags">Tags</th>
+        <th class="col-date">Created</th>
+        <th class="col-updated">Updated</th>
+        <th class="col-maturity">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {entries.map(entry => {
+        const cat = categories.find(c => c.id === entry.data.category);
+        return (
+          <tr class="entry-table-row" onclick={`window.location.href='/entries/${entry.id}'`}>
+            <td class="col-title">
+              <a href={`/entries/${entry.id}`} class="table-entry-title">{entry.data.title}</a>
+              {entry.data.excerpt && <span class="table-entry-excerpt">{entry.data.excerpt}</span>}
+            </td>
+            <td class="col-category">
+              <span class="table-cat-badge" style={cat ? `background: var(--color-bg-secondary)` : ''}>
+                {cat?.icon} {cat?.name || entry.data.category}
+              </span>
+            </td>
+            <td class="col-tags">
+              {entry.data.tags.slice(0, 3).map(tag => (
+                <span class="table-tag">#{tag}</span>
+              ))}
+              {entry.data.tags.length > 3 && (
+                <span class="table-tag-more">+{entry.data.tags.length - 3}</span>
+              )}
+            </td>
+            <td class="col-date">
+              {new Date(entry.data.date_created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </td>
+            <td class="col-updated">
+              {entry.data.date_updated
+                ? new Date(entry.data.date_updated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : <span class="table-muted">—</span>
+              }
+            </td>
+            <td class="col-maturity">
+              <span class={`table-maturity ${entry.data.maturity}`}>{entry.data.maturity}</span>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .entry-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .entry-table thead {
+    background: var(--color-bg-secondary);
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  .entry-table th {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .entry-table td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border-light);
+    vertical-align: middle;
+  }
+
+  .entry-table-row {
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .entry-table-row:hover {
+    background: var(--color-bg-secondary);
+  }
+
+  .entry-table-row:last-child td {
+    border-bottom: none;
+  }
+
+  .col-title {
+    min-width: 200px;
+  }
+
+  .col-category {
+    white-space: nowrap;
+    width: 140px;
+  }
+
+  .col-tags {
+    width: 180px;
+  }
+
+  .col-date {
+    white-space: nowrap;
+    width: 120px;
+  }
+
+  .col-updated {
+    white-space: nowrap;
+    width: 100px;
+  }
+
+  .col-maturity {
+    width: 80px;
+  }
+
+  .table-muted {
+    color: var(--color-text-light);
+  }
+
+  .table-entry-title {
+    display: block;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: var(--space-1);
+  }
+
+  .table-entry-title:hover {
+    color: var(--color-accent);
+  }
+
+  .table-entry-excerpt {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 300px;
+  }
+
+  .table-cat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .table-tag {
+    display: inline-block;
+    padding: 2px var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-full);
+    margin-right: var(--space-1);
+    margin-bottom: var(--space-1);
+  }
+
+  .table-tag-more {
+    font-size: var(--text-xs);
+    color: var(--color-text-light);
+  }
+
+  .table-maturity {
+    display: inline-block;
+    padding: 2px var(--space-2);
+    font-size: var(--text-xs);
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .table-maturity.draft { color: var(--color-text-muted); background: var(--color-bg-secondary); }
+  .table-maturity.reviewed { color: var(--color-warning); background: rgba(202, 138, 4, 0.1); }
+  .table-maturity.final { color: var(--color-success); background: rgba(22, 163, 74, 0.1); }
+
+  @media (max-width: 768px) {
+    .col-category, .col-maturity { display: none; }
+  }
+</style>

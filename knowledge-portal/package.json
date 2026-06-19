@@ -1,0 +1,48 @@
+{
+  "name": "knowledge-portal",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Personal knowledge portal - a durable archive for intergenerational wisdom",
+  "scripts": {
+    "dev": "npm run db:migrate && astro dev",
+    "build": "npm run db:migrate && astro build",
+    "preview": "npm run db:migrate && astro preview",
+    "check": "astro check",
+    "build:search": "tsx scripts/build-search-index.ts",
+    "build:graph": "tsx scripts/build-graph-data.ts",
+    "export:pdf": "tsx scripts/export-pdf.ts",
+    "create": "tsx scripts/create-entry.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "build:rss": "tsx scripts/build-rss.ts",
+    "test": "npm run build && npx playwright test",
+    "test:smoke": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:report": "npx playwright show-report test-results/report",
+    "check:all": "npm run build && npm run build:graph && npm run build:search && npm run build:rss && npx playwright test",
+    "export:all": "npm run build && npm run build:graph && npm run build:search && npm run build:rss"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.0.0",
+    "@astrojs/node": "^8.3.4",
+    "@astrojs/sitemap": "^3.0.0",
+    "@types/d3": "^7.4.3",
+    "astro": "^5.17.2",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.11.1",
+    "d3": "^7.9.0",
+    "drizzle-orm": "^0.45.2",
+    "flexsearch": "^0.7.43",
+    "graphology": "^0.26.0",
+    "sigma": "^3.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,105 @@
+---
+import CategoryLayout from '../../../layouts/CategoryLayout.astro';
+import EntryCard from '../../../components/EntryCard.astro';
+import EntryTable from '../../../components/EntryTable.astro';
+import { getCollection } from 'astro:content';
+import { categories } from '../../../config';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  return categories.map(category => ({
+    params: { category: category.id },
+  }));
+}
+
+const { category } = Astro.params;
+const allEntries = await getCollection('entries');
+const categoryEntries = allEntries
+  .filter(entry => entry.data.category === category)
+  .sort((a, b) => new Date(b.data.date_created).getTime() - new Date(a.data.date_created).getTime());
+---
+
+<CategoryLayout category={category!}>
+  <div class="category-view-toggle">
+    <button id="cat-view-card" class="view-toggle-btn active" onclick="switchCatView('card')" title="Card view">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/></svg>
+    </button>
+    <button id="cat-view-table" class="view-toggle-btn" onclick="switchCatView('table')" title="Table view">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h14M1 8h14M1 13h14"/><path d="M1 3v10a1 1 0 001 1h12a1 1 0 001-1V3a1 1 0 00-1-1H2a1 1 0 00-1 1z"/></svg>
+    </button>
+  </div>
+
+  {categoryEntries.length > 0 ? (
+    <>
+      <div id="cat-card-view" class="entry-list">
+        {categoryEntries.map(entry => (
+          <EntryCard entry={entry} />
+        ))}
+      </div>
+      <div id="cat-table-view" style="display: none;">
+        <EntryTable entries={categoryEntries} />
+      </div>
+    </>
+  ) : (
+    <div class="empty-state">
+      <div class="empty-state-icon">📝</div>
+      <h3 class="empty-state-title">No entries in this category yet</h3>
+      <p>Start writing to build your knowledge archive in this category.</p>
+    </div>
+  )}
+</CategoryLayout>
+
+<script>
+  (window as any).switchCatView = function(view: string) {
+    const cardView = document.getElementById('cat-card-view');
+    const tableView = document.getElementById('cat-table-view');
+    const cardBtn = document.getElementById('cat-view-card');
+    const tableBtn = document.getElementById('cat-view-table');
+
+    if (view === 'table') {
+      if (cardView) cardView.style.display = 'none';
+      if (tableView) tableView.style.display = 'block';
+      if (cardBtn) cardBtn.classList.remove('active');
+      if (tableBtn) tableBtn.classList.add('active');
+    } else {
+      if (cardView) cardView.style.display = 'block';
+      if (tableView) tableView.style.display = 'none';
+      if (cardBtn) cardBtn.classList.add('active');
+      if (tableBtn) tableBtn.classList.remove('active');
+    }
+  };
+</script>
+
+<style>
+  .category-view-toggle {
+    display: flex;
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
+  }
+
+  .view-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .view-toggle-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .view-toggle-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+  }
+</style>

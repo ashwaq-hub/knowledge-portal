@@ -1,0 +1,26 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import EntryCard from './EntryCard.astro';
+
+interface Props {
+  entries: CollectionEntry<'entries'>[];
+  title?: string;
+  emptyMessage?: string;
+}
+
+const { entries, title, emptyMessage = 'No entries yet.' } = Astro.props;
+---
+
+{title && <h2 class="page-header" style="margin-top: var(--space-8);">{title}</h2>}
+
+{entries.length > 0 ? (
+  <div class="entry-list">
+    {entries.map(entry => (
+      <EntryCard entry={entry} />
+    ))}
+  </div>
+) : (
+  <div class="empty-state">
+    <p class="empty-state-title">{emptyMessage}</p>
+  </div>
+)}

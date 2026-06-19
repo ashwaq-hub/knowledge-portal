@@ -1,0 +1,329 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EntryCard from '../../components/EntryCard.astro';
+import EntryTable from '../../components/EntryTable.astro';
+import { getCollection } from 'astro:content';
+import { categories } from '../../config';
+
+const allEntries = await getCollection('entries');
+
+const sortedEntries = allEntries.sort(
+  (a, b) => new Date(b.data.date_created).getTime() - new Date(a.data.date_created).getTime()
+);
+
+const tagCounts = allEntries.reduce((acc, entry) => {
+  entry.data.tags.forEach(tag => {
+    acc[tag] = (acc[tag] || 0) + 1;
+  });
+  return acc;
+}, {} as Record<string, number>);
+
+const topTags = Object.entries(tagCounts)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 20);
+---
+
+<BaseLayout title="All Entries" description="Browse all knowledge entries">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">All Entries</h1>
+      <p class="page-description">
+        {sortedEntries.length} entries across {Object.keys(tagCounts).length} topics
+      </p>
+      <div class="view-toggle">
+        <button id="view-card" class="view-toggle-btn active" onclick="switchView('card')" title="Card view">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/></svg>
+        </button>
+        <button id="view-table" class="view-toggle-btn" onclick="switchView('table')" title="Table view">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h14M1 8h14M1 13h14"/><path d="M1 3v10a1 1 0 001 1h12a1 1 0 001-1V3a1 1 0 00-1-1H2a1 1 0 00-1 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="tag-filter-bar" class="tag-filter-bar" style="display: none;">
+      <span>Filtered by tag: <strong id="tag-filter-label"></strong></span>
+      <button id="tag-filter-clear" class="tag-filter-clear">× Clear</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 240px; gap: var(--space-8);" class="entries-layout">
+      <main>
+        {sortedEntries.length > 0 ? (
+          <>
+            <div id="entries-card-view" class="entry-list">
+              {sortedEntries.map(entry => (
+                <EntryCard entry={entry} />
+              ))}
+            </div>
+            <div id="entries-table-view" style="display: none;">
+              <EntryTable entries={sortedEntries} />
+            </div>
+            <div id="entries-empty" class="empty-state" style="display: none;">
+              <div class="empty-state-icon">🏷️</div>
+              <h3 class="empty-state-title">No entries match this tag</h3>
+              <p>Try browsing <a href="/tags">all tags</a> instead.</p>
+            </div>
+          </>
+        ) : (
+          <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <h3 class="empty-state-title">No entries yet</h3>
+            <p>Start writing your first entry to build your knowledge archive.</p>
+          </div>
+        )}
+      </main>
+
+      <aside>
+        <div style="position: sticky; top: calc(var(--space-16) + var(--space-4));">
+          <h3 style="font-size: var(--text-lg); margin-bottom: var(--space-4);">Browse by Category</h3>
+          <ul style="list-style: none; padding: 0; margin-bottom: var(--space-6);">
+            <li style="margin-bottom: var(--space-2);">
+              <a href="/entries" style="display: flex; justify-content: space-between;">
+                <span>All</span>
+                <span style="color: var(--color-text-muted);">{allEntries.length}</span>
+              </a>
+            </li>
+            {categories.map(cat => {
+              const count = allEntries.filter(e => e.data.category === cat.id).length;
+              return (
+                <li style="margin-bottom: var(--space-2);">
+                  <a href={`/entries/${cat.id}`} style="display: flex; justify-content: space-between;">
+                    <span>{cat.icon} {cat.name}</span>
+                    <span style="color: var(--color-text-muted);">{count}</span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+
+          <h3 style="font-size: var(--text-lg); margin-bottom: var(--space-4);">Filter by Maturity</h3>
+          <div class="filter-chips" style="margin-bottom: var(--space-6);">
+            {['seedling', 'growing', 'evergreen'].map(m => {
+              const count = allEntries.filter(e => e.data.maturity === m).length;
+              return (
+                <a href={`/entries?maturity=${m}`} class="filter-chip" data-maturity={m}>
+                  {m} ({count})
+                </a>
+              );
+            })}
+            <a href="/entries" class="filter-chip filter-chip--active" data-maturity="">All</a>
+          </div>
+
+          {topTags.length > 0 && (
+            <>
+              <h3 style="font-size: var(--text-lg); margin-bottom: var(--space-4);">Popular Tags</h3>
+              <div class="entry-card-tags" style="flex-wrap: wrap;">
+                {topTags.map(([tag, count]) => (
+                  <a href={`/tags/${encodeURIComponent(tag)}`} class="tag" style="margin-bottom: var(--space-1);">
+                    #{tag} ({count})
+                  </a>
+                ))}
+              </div>
+              <p style="margin-top: var(--space-3); font-size: var(--text-xs);">
+                <a href="/tags">View all tags →</a>
+              </p>
+            </>
+          )}
+        </div>
+      </aside>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  (window as any).switchView = function(view: string) {
+    const cardView = document.getElementById('entries-card-view');
+    const tableView = document.getElementById('entries-table-view');
+    const cardBtn = document.getElementById('view-card');
+    const tableBtn = document.getElementById('view-table');
+
+    if (view === 'table') {
+      if (cardView) cardView.style.display = 'none';
+      if (tableView) tableView.style.display = 'block';
+      if (cardBtn) cardBtn.classList.remove('active');
+      if (tableBtn) tableBtn.classList.add('active');
+      try { localStorage.setItem('entries-view', 'table'); } catch {}
+    } else {
+      if (cardView) cardView.style.display = 'block';
+      if (tableView) tableView.style.display = 'none';
+      if (cardBtn) cardBtn.classList.add('active');
+      if (tableBtn) tableBtn.classList.remove('active');
+      try { localStorage.setItem('entries-view', 'card'); } catch {}
+    }
+  };
+
+  // Restore preference
+  try {
+    const saved = localStorage.getItem('entries-view');
+    if (saved === 'table') (window as any).switchView('table');
+  } catch {}
+
+  // Client-side filtering from ?tag= and ?maturity= query params
+  function applyFilters() {
+    const params = new URLSearchParams(window.location.search);
+    const filterTag = params.get('tag');
+    const filterMaturity = params.get('maturity');
+    const cardView = document.getElementById('entries-card-view');
+    const tableView = document.getElementById('entries-table-view');
+    const emptyView = document.getElementById('entries-empty');
+    const filterBar = document.getElementById('tag-filter-bar');
+    const filterLabel = document.getElementById('tag-filter-label');
+
+    if (!cardView) return;
+
+    const cards = cardView.querySelectorAll('.entry-card');
+    const rows = tableView ? tableView.querySelectorAll('.entry-table-row') : null;
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+      const tagsEl = card.querySelector('.entry-card-tags');
+      const maturityEl = card.querySelector('[data-maturity]');
+      const matchesTag = !filterTag || (tagsEl && tagsEl.textContent?.toLowerCase().includes(filterTag.toLowerCase()));
+      const matchesMaturity = !filterMaturity || (maturityEl && maturityEl.getAttribute('data-maturity') === filterMaturity);
+      const visible = matchesTag && matchesMaturity;
+      (card as HTMLElement).style.display = visible ? '' : 'none';
+      if (visible) visibleCount++;
+    });
+
+    if (rows) {
+      rows.forEach(row => {
+        const tagsEl = row.querySelector('.col-tags');
+        const maturityEl = row.querySelector('[data-maturity]');
+        const matchesTag = !filterTag || (tagsEl && tagsEl.textContent?.toLowerCase().includes(filterTag.toLowerCase()));
+        const matchesMaturity = !filterMaturity || (maturityEl && maturityEl.getAttribute('data-maturity') === filterMaturity);
+        (row as HTMLElement).style.display = (matchesTag && matchesMaturity) ? '' : 'none';
+      });
+    }
+
+    if (filterTag && filterLabel) {
+      filterLabel.textContent = `#${filterTag}`;
+      if (filterBar) filterBar.style.display = 'flex';
+    } else if (filterMaturity && filterLabel) {
+      filterLabel.textContent = `maturity: ${filterMaturity}`;
+      if (filterBar) filterBar.style.display = 'flex';
+    } else {
+      if (filterBar) filterBar.style.display = 'none';
+    }
+
+    if (emptyView) {
+      emptyView.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+
+    // Highlight active filter chip
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      const val = chip.getAttribute('data-maturity');
+      chip.classList.toggle('filter-chip--active', val === (filterMaturity || ''));
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', applyFilters);
+
+  const clearBtn = document.getElementById('tag-filter-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('tag');
+      url.searchParams.delete('maturity');
+      window.history.replaceState({}, '', url.pathname);
+      applyFilters();
+    });
+  }
+</script>
+
+<style>
+  .view-toggle {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: var(--space-4);
+  }
+
+  .view-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .view-toggle-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .view-toggle-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+  }
+
+  .tag-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-4);
+    background: var(--color-accent-alpha);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    gap: var(--space-3);
+  }
+
+  .tag-filter-clear {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .tag-filter-clear:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  @media (max-width: 768px) {
+    .entries-layout {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  .filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .filter-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    color: var(--color-text);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+  }
+
+  .filter-chip:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .filter-chip--active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+  }
+</style>

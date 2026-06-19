@@ -1,0 +1,49 @@
+---
+import { siteConfig } from '../config';
+
+interface BreadcrumbItem {
+  label: string;
+  href: string;
+}
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+
+const absoluteUrl = (path: string) => new URL(path, siteConfig.url).href;
+---
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  {items.map((item, index) => (
+    <>
+      {index > 0 && <span class="breadcrumb-separator" aria-hidden="true">/</span>}
+      {index === items.length - 1 ? (
+        <span class="breadcrumb-current" aria-current="page" itemscope itemtype="https://schema.org/ListItem">
+          <span itemprop="name">{item.label}</span>
+          <meta itemprop="position" content={String(index + 1)} />
+          <meta itemprop="item" content={absoluteUrl(item.href)} />
+        </span>
+      ) : (
+        <a href={item.href} class="breadcrumb-link" itemscope itemtype="https://schema.org/ListItem">
+          <span itemprop="name">{item.label}</span>
+          <meta itemprop="position" content={String(index + 1)} />
+          <meta itemprop="item" content={absoluteUrl(item.href)} />
+        </a>
+      )}
+    </>
+  ))}
+  <script is:inline type="application/ld+json">
+    {JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: items.map((item, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: item.label,
+        item: absoluteUrl(item.href),
+      })),
+    })}
+  </script>
+</nav>

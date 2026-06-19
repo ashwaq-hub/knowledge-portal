@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#1a1a2e"/>
+  <text x="600" y="280" font-family="system-ui, sans-serif" font-size="56" font-weight="700" fill="#e0e0e0" text-anchor="middle">Personal Knowledge</text>
+  <text x="600" y="350" font-family="system-ui, sans-serif" font-size="56" font-weight="700" fill="#e0e0e0" text-anchor="middle">Portal</text>
+  <text x="600" y="420" font-family="system-ui, sans-serif" font-size="24" fill="#888" text-anchor="middle">A durable archive for intergenerational wisdom</text>
+</svg>

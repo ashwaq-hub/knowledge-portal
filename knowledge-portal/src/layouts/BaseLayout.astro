@@ -1,0 +1,169 @@
+---
+import '../styles/global.css';
+import '../styles/components.css';
+import '../styles/print.css';
+import { siteConfig, categories } from '../config';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+const {
+  title = siteConfig.title,
+  description = siteConfig.description,
+  image,
+} = Astro.props;
+
+const ogImage = image || '/og-default.svg';
+const pageTitle = title === siteConfig.title ? title : `${title} | ${siteConfig.title}`;
+const canonicalUrl = new URL(Astro.url.pathname, siteConfig.url).href;
+
+const currentPath = Astro.url.pathname;
+const user = Astro.locals.currentUser;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="author" content={siteConfig.author} />
+    <title>{pageTitle}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#7c3aed" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteConfig.title} />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: siteConfig.title,
+      description: siteConfig.description,
+      url: siteConfig.url,
+      author: { '@type': 'Person', name: siteConfig.author },
+    })} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script is:inline>
+      (function() {
+        var theme = localStorage.getItem('theme');
+        if (theme) {
+          document.documentElement.setAttribute('data-theme', theme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    <meta name="astro-view-transitions-enabled" content="true" />
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="container container-wide">
+        <div class="nav-inner">
+          <a href="/" class="nav-logo">{siteConfig.title}</a>
+          <ul class="nav-links">
+            <li>
+              <a href="/" class:list={['nav-link', { active: currentPath === '/' }]}>Home</a>
+            </li>
+            <li>
+              <a href="/entries" class:list={['nav-link', { active: currentPath.startsWith('/entries') }]}>All Entries</a>
+            </li>
+            <li>
+              <a href="/search" class:list={['nav-link', { active: currentPath === '/search' }]}>Search</a>
+            </li>
+            <li>
+              <a href="/mindmap" class:list={['nav-link', { active: currentPath === '/mindmap' }]}>Mindmap</a>
+            </li>
+            <li>
+              <a href="/graph" class:list={['nav-link', { active: currentPath === '/graph' }]}>Graph</a>
+            </li>
+            <li>
+              <a href="/timeline" class:list={['nav-link', { active: currentPath === '/timeline' }]}>Timeline</a>
+            </li>
+            <li>
+              <a href="/export" class:list={['nav-link', { active: currentPath === '/export' }]}>Export</a>
+            </li>
+            <li>
+              <a href="/analytics" class:list={['nav-link', { active: currentPath === '/analytics' }]}>Analytics</a>
+            </li>
+            <li>
+              <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+                <svg class="theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <svg class="theme-icon-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              </button>
+            </li>
+            {user ? (
+              <li><a href="/admin" class="nav-link">Dashboard</a></li>
+            ) : (
+              <li><a href="/login" class="nav-link">Log in</a></li>
+              <li><a href="/register" class="nav-link">Register</a></li>
+            )}
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <script is:inline>
+      if (document.startViewTransition) {
+        document.addEventListener('click', function(e) {
+          var a = e.target.closest('a:not([target]):not([href^="#"]):not([href*="://"]):not([download])');
+          if (!a || !a.href || !a.href.startsWith(location.origin)) return;
+          var cur = location.href.replace(/\/$/, '');
+          var dest = a.href.replace(/\/$/, '');
+          if (dest === cur) return;
+          e.preventDefault();
+          document.startViewTransition(function() { location.href = a.href; });
+        });
+      }
+    </script>
+    <script is:inline>
+      document.getElementById('themeToggle')?.addEventListener('click', function() {
+        var html = document.documentElement;
+        var current = html.getAttribute('data-theme') || 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+      });
+    </script>
+
+    <main>
+      <slot />
+    </main>
+
+    <script>
+      import '../scripts/analytics.ts';
+    </script>
+
+    <script>
+      import '../scripts/content-mgmt.ts';
+    </script>
+
+    <script is:inline>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
+
+    <footer class="footer">
+      <div class="container">
+        <p>{siteConfig.title} — A personal knowledge archive</p>
+        <p>Built with care. Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,89 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const allEntries = await getCollection('entries');
+
+const tagMap = allEntries.reduce((acc, entry) => {
+  entry.data.tags.forEach(tag => {
+    if (!acc.has(tag)) acc.set(tag, []);
+    acc.get(tag)!.push(entry);
+  });
+  return acc;
+}, new Map<string, typeof allEntries>());
+
+const sortedTags = [...tagMap.entries()].sort((a, b) => b[1].length - a[1].length);
+const maxCount = sortedTags.length > 0 ? sortedTags[0][1].length : 1;
+---
+
+<BaseLayout title="Tags" description="Browse all topic tags">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">Tags</h1>
+      <p class="page-description">
+        {tagMap.size} tag{tagMap.size !== 1 ? 's' : ''} across {allEntries.length} entr{allEntries.length === 1 ? 'y' : 'ies'}
+      </p>
+    </header>
+
+    {sortedTags.length > 0 ? (
+      <div class="tag-cloud">
+        {sortedTags.map(([tag, entries]) => {
+          const weight = entries.length / maxCount;
+          const fontSize = 0.75 + weight * 1.25;
+          return (
+            <a
+              href={`/tags/${encodeURIComponent(tag)}`}
+              class="tag-cloud-item"
+              style={`font-size: ${fontSize.toFixed(2)}rem;`}
+              title={`${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}
+            >
+              #{tag}
+              <span class="tag-cloud-count">{entries.length}</span>
+            </a>
+          );
+        })}
+      </div>
+    ) : (
+      <div class="empty-state">
+        <div class="empty-state-icon">🏷️</div>
+        <h3 class="empty-state-title">No tags yet</h3>
+        <p>Add tags to your entries to see them here.</p>
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: center;
+    padding: var(--space-8) 0;
+    line-height: 1.8;
+  }
+
+  .tag-cloud-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-text);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .tag-cloud-item:hover {
+    color: var(--color-accent);
+    background: var(--color-bg-secondary);
+    transform: translateY(-1px);
+  }
+
+  .tag-cloud-count {
+    font-size: 0.65em;
+    color: var(--color-text-light);
+    font-weight: 400;
+  }
+</style>

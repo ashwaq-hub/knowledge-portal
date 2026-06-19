@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import EntryCard from '../components/EntryCard.astro';
+import { getCollection } from 'astro:content';
+
+const allEntries = await getCollection('entries');
+
+// Group entries by year
+const entriesByYear = allEntries.reduce((acc, entry) => {
+  const year = new Date(entry.data.date_created).getFullYear().toString();
+  if (!acc[year]) acc[year] = [];
+  acc[year].push(entry);
+  return acc;
+}, {} as Record<string, typeof allEntries>);
+
+const years = Object.keys(entriesByYear).sort((a, b) => parseInt(b) - parseInt(a));
+---
+
+<BaseLayout title="Timeline" description="Browse entries chronologically">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">Timeline</h1>
+      <p class="page-description">
+        Browse {allEntries.length} entries chronologically
+      </p>
+    </header>
+
+    {years.length > 0 ? (
+      <div class="timeline">
+        {years.map(year => (
+          <div class="timeline-year">
+            <div class="timeline-marker">
+              <span class="timeline-year-label">{year}</span>
+              <span class="timeline-count">{entriesByYear[year].length} entries</span>
+            </div>
+            <div class="timeline-entries">
+              {entriesByYear[year]
+                .sort((a, b) => new Date(b.data.date_created).getTime() - new Date(a.data.date_created).getTime())
+                .map(entry => (
+                  <EntryCard entry={entry} />
+                ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div class="empty-state">
+        <div class="empty-state-icon">📅</div>
+        <h3 class="empty-state-title">No entries yet</h3>
+        <p>Start writing to build your knowledge timeline.</p>
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .timeline {
+    position: relative;
+    padding-left: var(--space-8);
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--color-border);
+  }
+
+  .timeline-year {
+    position: relative;
+    margin-bottom: var(--space-8);
+  }
+
+  .timeline-year::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--space-8) - 5px);
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    background: var(--color-accent);
+    border-radius: 50%;
+  }
+
+  .timeline-marker {
+    margin-bottom: var(--space-4);
+  }
+
+  .timeline-year-label {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .timeline-count {
+    margin-left: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .timeline-entries {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  @media (max-width: 768px) {
+    .timeline {
+      padding-left: var(--space-6);
+    }
+
+    .timeline::before {
+      left: 0;
+    }
+
+    .timeline-year::before {
+      left: calc(-1 * var(--space-6) - 5px);
+    }
+  }
+</style>

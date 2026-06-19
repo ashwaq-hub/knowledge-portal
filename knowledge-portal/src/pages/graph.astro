@@ -1,0 +1,200 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { categories } from '../config';
+import { buildGraphData } from '../lib/graph-data';
+
+const allEntries = await getCollection('entries');
+const graphData = buildGraphData(allEntries);
+const categoryColors: Record<string, string> = {
+  'life-lessons': '#2563eb',
+  'decision-frameworks': '#7c3aed',
+  'financial-wisdom': '#059669',
+  'family-history': '#d97706',
+  'practical-skills': '#dc2626',
+  'book-library': '#0891b2',
+  'values': '#9333ea',
+  'letters-to-future': '#db2777',
+  'career-craft': '#ca8a04',
+  'health-wellness': '#16a34a',
+};
+const graphDataEncoded = encodeURIComponent(JSON.stringify(graphData));
+const categoryColorsEncoded = encodeURIComponent(JSON.stringify(categoryColors));
+---
+
+<BaseLayout title="Knowledge Graph" description="Explore connections between entries">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">Knowledge Graph</h1>
+      <p class="page-description">
+        Explore connections between {graphData.nodes.length} entries and {graphData.edges.length} links
+      </p>
+    </header>
+
+    <div class="graph-controls">
+      <div class="graph-legend">
+        {categories.map(cat => {
+          const color = categoryColors[cat.id] || '#666';
+          return (
+          <span class="graph-legend-item">
+            <span class="graph-legend-dot" style={`background: ${color};`}></span>
+            {cat.icon} {cat.name}
+          </span>
+          );
+        })}
+      </div>
+      <div class="graph-edge-legend">
+        <span class="graph-legend-item">
+          <span class="graph-legend-line" style="border-color: #666;"></span>
+          Related
+        </span>
+        <span class="graph-legend-item">
+          <span class="graph-legend-line" style="border-color: #999; border-style: dashed;"></span>
+          Same tag
+        </span>
+      </div>
+    </div>
+
+    <div id="graph-container" class="graph-container">
+      <div id="graph-loading" class="graph-loading">
+        <div class="loading-spinner"></div>
+        <p>Loading graph...</p>
+      </div>
+    </div>
+
+    <div id="graph-tooltip" class="graph-tooltip" style="display: none;"></div>
+
+    <details style="margin-top: var(--space-4);">
+      <summary style="cursor: pointer; font-weight: 500; font-size: var(--text-sm); color: var(--color-text-muted);">Graph Data Stats</summary>
+      <div style="margin-top: var(--space-3); font-size: var(--text-sm); color: var(--color-text-muted);">
+        <p>Nodes: {graphData.nodes.length}</p>
+        <p>Edges: {graphData.edges.length}</p>
+        <p>Related links: {graphData.edges.filter(e => e.type === 'related').length}</p>
+        <p>Tag-based links: {graphData.edges.filter(e => e.type === 'same-tag').length}</p>
+        <p>Life stage links: {graphData.edges.filter(e => e.type === 'same-life-stage').length}</p>
+      </div>
+    </details>
+  </div>
+</BaseLayout>
+
+<div id="graph-data-store" data-value={graphDataEncoded} style="display:none"></div>
+<div id="graph-colors-store" data-value={categoryColorsEncoded} style="display:none"></div>
+
+<script>
+  import { renderGraph } from '../scripts/graph-render';
+
+  const graphData = JSON.parse(decodeURIComponent(document.getElementById('graph-data-store')?.getAttribute('data-value') || '{}'));
+  const categoryColors = JSON.parse(decodeURIComponent(document.getElementById('graph-colors-store')?.getAttribute('data-value') || '{}'));
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => renderGraph('graph-container', 'graph-loading', 'graph-tooltip', graphData, categoryColors));
+  } else {
+    renderGraph('graph-container', 'graph-loading', 'graph-tooltip', graphData, categoryColors);
+  }
+</script>
+
+<style>
+  .graph-container {
+    width: 100%;
+    height: 600px;
+    min-height: 50vh;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  @media (max-width: 640px) {
+    .graph-container {
+      height: 60vh;
+      max-height: 450px;
+    }
+  }
+
+  .graph-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--space-4);
+    color: var(--color-text-muted);
+  }
+
+  .graph-tooltip {
+    position: fixed;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    max-width: 280px;
+    pointer-events: none;
+  }
+
+  .graph-tooltip-title {
+    font-weight: 600;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-1);
+    color: var(--color-text);
+  }
+
+  .graph-tooltip-meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-1);
+  }
+
+  .graph-tooltip-tags {
+    font-size: var(--text-xs);
+    color: var(--color-text-light);
+    margin-bottom: var(--space-1);
+  }
+
+  .graph-tooltip-link {
+    font-size: var(--text-xs);
+  }
+
+  .graph-tooltip-link a {
+    color: var(--color-accent);
+    pointer-events: auto;
+  }
+
+  .graph-controls {
+    display: flex;
+    gap: var(--space-8);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-4);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .graph-legend, .graph-edge-legend {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .graph-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .graph-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .graph-legend-line {
+    width: 16px;
+    height: 0;
+    border-top: 2px solid;
+    display: inline-block;
+  }
+</style>

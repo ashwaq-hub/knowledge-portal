@@ -1,0 +1,83 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { listEntriesFromDisk } from '../../lib/content';
+
+const user = Astro.locals.currentUser;
+if (!user) {
+  return Astro.redirect('/login');
+}
+
+const sorted = listEntriesFromDisk();
+---
+
+<BaseLayout title="Manage Entries">
+  <div class="admin-page">
+    <div class="admin-header">
+      <h1>Entries</h1>
+      <a href="/admin/entries/new" class="btn btn-primary">New entry</a>
+    </div>
+
+    {sorted.length === 0 ? (
+      <p class="empty-state">No entries yet.</p>
+    ) : (
+      <div class="entries-table-wrap">
+        <table class="entries-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Maturity</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map(entry => (
+              <tr>
+                <td>
+                  <a href={`/admin/entries/edit/${entry.id}`} class="entry-link">{entry.title}</a>
+                  {entry.excerpt && <span class="entry-excerpt">{entry.excerpt.slice(0, 80)}{entry.excerpt.length > 80 ? '…' : ''}</span>}
+                </td>
+                <td><span class="category-badge">{entry.category}</span></td>
+                <td><span class="maturity-badge maturity-badge--{entry.maturity}">{entry.maturity}</span></td>
+                <td class="entry-date">{new Date(entry.date_created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                <td>
+                  <a href={`/admin/entries/edit/${entry.id}`} class="btn btn-sm">Edit</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<style is:global>
+  .admin-page { padding: 2rem; max-width: 960px; margin: 0 auto; }
+  .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .admin-header h1 { margin: 0; }
+  .entries-table-wrap { overflow-x: auto; }
+  .entries-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .entries-table th, .entries-table td { padding: 0.625rem 0.75rem; text-align: left; border-bottom: 1px solid var(--color-border); }
+  .entries-table th { font-weight: 600; color: var(--color-text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .entries-table tbody tr:hover { background: var(--color-bg-secondary); }
+  .entry-link { color: var(--color-text); font-weight: 500; text-decoration: none; display: block; }
+  .entry-link:hover { color: var(--color-accent); }
+  .entry-excerpt { display: block; color: var(--color-text-muted); font-size: 0.8125rem; margin-top: 2px; }
+  .entry-date { white-space: nowrap; color: var(--color-text-muted); font-size: 0.8125rem; }
+  .category-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; background: var(--color-bg-secondary); font-size: 0.75rem; }
+  .maturity-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
+  .maturity-badge--draft { background: #fef3c7; color: #92400e; }
+  .maturity-badge--reviewed { background: #dbeafe; color: #1e40af; }
+  .maturity-badge--final { background: #d1fae5; color: #065f46; }
+  .empty-state { text-align: center; color: var(--color-text-muted); padding: 3rem 0; }
+  .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.8125rem; font-weight: 500; text-decoration: none; border: 1px solid var(--color-border); color: var(--color-text); background: var(--color-bg); cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: var(--color-bg-secondary); }
+  .btn-primary { background: #7c3aed; color: white; border-color: #7c3aed; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+  [data-theme="dark"] .maturity-badge--draft { background: #78350f; color: #fde68a; }
+  [data-theme="dark"] .maturity-badge--reviewed { background: #1e3a5f; color: #93c5fd; }
+  [data-theme="dark"] .maturity-badge--final { background: #064e3b; color: #a7f3d0; }
+</style>

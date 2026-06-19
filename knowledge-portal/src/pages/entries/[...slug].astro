@@ -1,0 +1,21 @@
+---
+import EntryLayout from '../../layouts/EntryLayout.astro';
+import { getCollection } from 'astro:content';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const allEntries = await getCollection('entries');
+  return allEntries.map(entry => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await entry.render();
+---
+
+<EntryLayout entry={entry} headings={headings}>
+  <Content />
+</EntryLayout>

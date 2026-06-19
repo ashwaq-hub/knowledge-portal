@@ -1,0 +1,66 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+const user = Astro.locals.currentUser;
+if (user) {
+  return Astro.redirect('/admin');
+}
+---
+
+<BaseLayout title="Log in">
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>Log in</h1>
+      <form id="loginForm" method="POST" action="/api/auth/login">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password" />
+        </div>
+        <div id="loginError" class="form-error" hidden></div>
+        <button type="submit" class="btn btn-primary">Log in</button>
+      </form>
+      <p class="auth-alt">Don't have an account? <a href="/register">Register</a></p>
+    </div>
+  </div>
+  <script>
+    document.getElementById('loginForm')?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const errorEl = document.getElementById('loginError');
+      const btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'Logging in…';
+      try {
+        const res = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+        if (res.ok) {
+          window.location.href = '/admin';
+        } else {
+          const data = await res.json();
+          errorEl.textContent = data.error || 'Login failed';
+          errorEl.hidden = false;
+        }
+      } catch {
+        errorEl.textContent = 'Network error';
+        errorEl.hidden = false;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Log in';
+      }
+    });
+  </script>
+</BaseLayout>
+
+<style is:global>
+  .auth-page { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 2rem; }
+  .auth-card { background: var(--card-bg, #fff); border: 1px solid var(--border, #e0e0e0); border-radius: 8px; padding: 2rem; width: 100%; max-width: 400px; }
+  .auth-card h1 { margin: 0 0 1.5rem; font-size: 1.5rem; }
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.875rem; }
+  .form-group input { width: 100%; padding: 0.5rem; border: 1px solid var(--border, #e0e0e0); border-radius: 4px; font-size: 1rem; background: var(--input-bg, #fff); color: inherit; }
+  .form-error { color: #e53e3e; font-size: 0.875rem; margin-bottom: 0.75rem; }
+  .btn-primary { width: 100%; padding: 0.625rem; font-size: 1rem; }
+  .auth-alt { margin-top: 1rem; text-align: center; font-size: 0.875rem; }
+</style>
