@@ -40,8 +40,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   try {
-    const { slug } = writeEntryFile(body);
-    return new Response(JSON.stringify({ success: true, slug }), {
+    const { slug, filePath } = writeEntryFile(body);
+    const fullSlug = `${body.category}/${slug}`;
+    return new Response(JSON.stringify({ success: true, slug: fullSlug }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
