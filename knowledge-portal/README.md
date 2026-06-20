@@ -4,7 +4,7 @@ A durable, personal knowledge archive — built to outlast you and designed to p
 
 ## Features
 
-- **10 knowledge categories** — Life lessons, decision frameworks, financial wisdom, family history, practical skills, book reviews, values, letters to the future, career insights, and health & wellness
+- **11 knowledge categories** — Life lessons, decision frameworks, financial wisdom, family history, practical skills, book reviews, values, letters to the future, career insights, health & wellness, and relationships
 - **Full-text search** — Instant search across all entries
 - **Knowledge graph** — Visualize connections between ideas
 - **Timeline view** — Browse entries chronologically

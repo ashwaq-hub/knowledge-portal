@@ -73,6 +73,12 @@ export const categories = [
     description: 'Lessons about body, mind, and living well',
     icon: '🌿',
   },
+  {
+    id: 'relationships',
+    name: 'Relationships',
+    description: 'Lessons on love, friendship, family bonds, and human connection',
+    icon: '❤️',
+  },
 ] as const;
 
 export type CategoryId = typeof categories[number]['id'];
