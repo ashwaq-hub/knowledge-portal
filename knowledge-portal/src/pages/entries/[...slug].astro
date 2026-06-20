@@ -2,17 +2,14 @@
 import EntryLayout from '../../layouts/EntryLayout.astro';
 import { getCollection } from 'astro:content';
 
-export const prerender = true;
+const { slug } = Astro.params;
+const allEntries = await getCollection('entries');
+const entry = allEntries.find(e => e.id === slug);
 
-export async function getStaticPaths() {
-  const allEntries = await getCollection('entries');
-  return allEntries.map(entry => ({
-    params: { slug: entry.id },
-    props: { entry },
-  }));
+if (!entry) {
+  return Astro.redirect('/404');
 }
 
-const { entry } = Astro.props;
 const { Content, headings } = await entry.render();
 ---
 

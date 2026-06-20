@@ -1,0 +1,262 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { categories } from '../config';
+
+const user = Astro.locals.currentUser;
+---
+
+<BaseLayout title="Subscribe" description="Subscribe to new entries from the knowledge portal">
+  <div class="subscribe-page">
+    <div class="subscribe-card">
+      <h1>Subscribe to updates</h1>
+      <p class="subscribe-description">
+        Get notified when new entries are added to the knowledge portal.
+      </p>
+
+      {user ? (
+        <>
+          <div id="sub-status" class="sub-status" style="display:none"></div>
+          <form id="subscribe-form" class="subscribe-form">
+            <fieldset class="form-fieldset">
+              <legend class="form-legend">Notification frequency</legend>
+              <label class="radio-label">
+                <input type="radio" name="frequency" value="immediate" /> Immediate — as soon as new entries publish
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="frequency" value="daily" /> Daily digest
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="frequency" value="weekly" checked /> Weekly digest
+              </label>
+            </fieldset>
+
+            <fieldset class="form-fieldset">
+              <legend class="form-legend">Categories (leave all unchecked for everything)</legend>
+              <div class="category-grid">
+                {categories.map(cat => (
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="categories" value={cat.id} />
+                    {cat.icon} {cat.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div class="subscribe-actions">
+              <button type="submit" class="btn btn-primary" id="subscribe-btn">Save preferences</button>
+              <button type="button" class="btn btn-danger" id="unsubscribe-btn" style="display:none">Unsubscribe</button>
+            </div>
+            <div id="sub-error" class="form-error" style="display:none"></div>
+          </form>
+        </>
+      ) : (
+        <div class="subscribe-gate">
+          <p>You need an account to subscribe to updates.</p>
+          <div style="display:flex;gap:1rem;margin-top:1rem;">
+            <a href="/login" class="btn btn-primary">Log in</a>
+            <a href="/register" class="btn">Register</a>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  async function loadSubscription() {
+    const res = await fetch('/api/subscriptions');
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  async function init() {
+    const form = document.getElementById('subscribe-form') as HTMLFormElement | null;
+    if (!form) return;
+
+    const unsubBtn = document.getElementById('unsubscribe-btn') as HTMLButtonElement | null;
+    const statusEl = document.getElementById('sub-status');
+    const errorEl = document.getElementById('sub-error');
+
+    const sub = await loadSubscription().catch(() => null);
+
+    if (sub?.subscribed) {
+      // Pre-fill form
+      const freqRadio = form.querySelector<HTMLInputElement>(`input[name="frequency"][value="${sub.frequency}"]`);
+      if (freqRadio) freqRadio.checked = true;
+
+      (sub.categories as string[]).forEach((catId: string) => {
+        const cb = form.querySelector<HTMLInputElement>(`input[name="categories"][value="${catId}"]`);
+        if (cb) cb.checked = true;
+      });
+
+      if (unsubBtn) unsubBtn.style.display = 'inline-block';
+      if (statusEl) {
+        statusEl.textContent = `Currently subscribed (${sub.frequency})`;
+        statusEl.style.display = 'block';
+        statusEl.className = 'sub-status sub-status--active';
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('subscribe-btn') as HTMLButtonElement | null;
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
+      if (errorEl) errorEl.style.display = 'none';
+
+      const fd = new FormData(form);
+      const frequency = fd.get('frequency') as string || 'weekly';
+      const categories = fd.getAll('categories') as string[];
+
+      try {
+        const res = await fetch('/api/subscriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ frequency, categories }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (errorEl) { errorEl.textContent = data.error || 'Failed to save'; errorEl.style.display = 'block'; }
+          return;
+        }
+        if (statusEl) {
+          statusEl.textContent = `Subscribed (${frequency})`;
+          statusEl.style.display = 'block';
+          statusEl.className = 'sub-status sub-status--active';
+        }
+        if (unsubBtn) unsubBtn.style.display = 'inline-block';
+      } catch {
+        if (errorEl) { errorEl.textContent = 'Network error'; errorEl.style.display = 'block'; }
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save preferences'; }
+      }
+    });
+
+    unsubBtn?.addEventListener('click', async () => {
+      if (!confirm('Unsubscribe from all notifications?')) return;
+      unsubBtn.disabled = true;
+      unsubBtn.textContent = 'Unsubscribing…';
+      try {
+        await fetch('/api/subscriptions', { method: 'DELETE' });
+        if (statusEl) { statusEl.textContent = 'Unsubscribed'; statusEl.className = 'sub-status'; }
+        unsubBtn.style.display = 'none';
+        form.reset();
+        const weekly = form.querySelector<HTMLInputElement>('input[value="weekly"]');
+        if (weekly) weekly.checked = true;
+      } finally {
+        unsubBtn.disabled = false;
+        unsubBtn.textContent = 'Unsubscribe';
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+  .subscribe-page {
+    display: flex;
+    justify-content: center;
+    padding: 3rem 1rem;
+  }
+
+  .subscribe-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 12px);
+    padding: 2rem;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .subscribe-card h1 {
+    margin: 0 0 0.5rem;
+    font-size: 1.5rem;
+  }
+
+  .subscribe-description {
+    color: var(--color-text-muted);
+    font-size: 0.9375rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .sub-status {
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-muted);
+  }
+
+  .sub-status--active {
+    background: var(--color-accent-alpha, rgba(99,102,241,0.1));
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+  }
+
+  .form-fieldset {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-legend {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0 0.25rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .radio-label,
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    padding: 0.375rem 0;
+    cursor: pointer;
+  }
+
+  .category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+  }
+
+  .subscribe-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 1.25rem;
+  }
+
+  .btn-danger {
+    background: var(--color-error, #e53e3e);
+    color: white;
+    border-color: var(--color-error, #e53e3e);
+  }
+
+  .btn-danger:hover {
+    opacity: 0.85;
+  }
+
+  .form-error {
+    color: var(--color-error, #e53e3e);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+  }
+
+  .subscribe-gate {
+    color: var(--color-text);
+    font-size: 0.9375rem;
+  }
+
+  @media (max-width: 480px) {
+    .category-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

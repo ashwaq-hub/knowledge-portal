@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
+import { categories } from '../config';
 
 const allEntries = await getCollection('entries');
 
@@ -23,7 +24,7 @@ const searchData = allEntries.map(entry => ({
     <header class="search-hero">
       <h1 class="search-title">Search</h1>
       <p class="search-subtitle">
-        {allEntries.length} entries across 10 categories
+        {allEntries.length} entries across {categories.length} categories
       </p>
       <div class="search-bar-wrap">
         <svg class="search-bar-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
