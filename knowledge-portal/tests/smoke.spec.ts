@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 const NAV_LINKS = ['/', '/entries', '/search', '/mindmap', '/graph', '/timeline', '/export', '/analytics'];
-const CATEGORY_IDS = ['life-lessons', 'decision-frameworks', 'financial-wisdom', 'family-history', 'practical-skills', 'book-library', 'values', 'letters-to-future', 'career-craft', 'health-wellness'];
+const CATEGORY_IDS = ['life-lessons', 'decision-frameworks', 'financial-wisdom', 'family-history', 'practical-skills', 'book-library', 'values', 'letters-to-future', 'career-craft', 'health-wellness', 'relationships'];
 const TAG_SLUGS = ['leadership', 'management', 'career', 'family', 'finance', 'investing', 'health', 'communication'];
 const API_PATHS = ['/api/entries', '/api/tags', '/api/categories'];
 

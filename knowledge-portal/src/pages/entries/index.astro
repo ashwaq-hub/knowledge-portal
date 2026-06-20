@@ -97,11 +97,12 @@ const topTags = Object.entries(tagCounts)
 
           <h3 style="font-size: var(--text-lg); margin-bottom: var(--space-4);">Filter by Maturity</h3>
           <div class="filter-chips" style="margin-bottom: var(--space-6);">
-            {['seedling', 'growing', 'evergreen'].map(m => {
+            {(['draft', 'reviewed', 'final'] as const).map(m => {
+              const label = m.charAt(0).toUpperCase() + m.slice(1);
               const count = allEntries.filter(e => e.data.maturity === m).length;
               return (
                 <a href={`/entries?maturity=${m}`} class="filter-chip" data-maturity={m}>
-                  {m} ({count})
+                  {label} ({count})
                 </a>
               );
             })}
