@@ -5,6 +5,7 @@ import RelatedEntries from '../components/RelatedEntries.astro';
 import ReadingTime from '../components/ReadingTime.astro';
 import TableOfContents from '../components/TableOfContents.astro';
 import Comments from '../components/Comments.astro';
+import Reactions from '../components/Reactions.astro';
 import { getCollection } from 'astro:content';
 import { categories, siteConfig } from '../config';
 import type { CollectionEntry } from 'astro:content';
@@ -236,6 +237,7 @@ const breadcrumbs = [
           ) : <div></div>}
         </nav>
       )}
+      <Reactions entryId={entry.id} user={user} />
       <Comments entryId={entry.id} user={user} />
     </article>
   </div>

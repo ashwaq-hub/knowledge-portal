@@ -1,0 +1,106 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getDb, schema } from '../../lib/db/index';
+import { eq } from 'drizzle-orm';
+
+const { token } = Astro.params;
+const user = Astro.locals.currentUser;
+if (user) return Astro.redirect('/admin');
+
+// Validate token before rendering — show error early
+let tokenValid = false;
+let tokenError = '';
+try {
+  const db = getDb();
+  const row = db
+    .select()
+    .from(schema.passwordResetTokens)
+    .where(eq(schema.passwordResetTokens.token, token!))
+    .get();
+  if (!row) {
+    tokenError = 'This reset link is invalid.';
+  } else if (row.usedAt) {
+    tokenError = 'This reset link has already been used.';
+  } else if (new Date(row.expiresAt) < new Date()) {
+    tokenError = 'This reset link has expired. Please request a new one.';
+  } else {
+    tokenValid = true;
+  }
+} catch {
+  tokenError = 'Unable to validate reset link.';
+}
+---
+
+<BaseLayout title="Reset password">
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>Reset password</h1>
+      {!tokenValid ? (
+        <>
+          <p class="form-message form-message--error" style="display:block">{tokenError}</p>
+          <p class="auth-alt"><a href="/forgot-password">Request a new reset link</a></p>
+        </>
+      ) : (
+        <>
+          <form id="resetForm">
+            <input type="hidden" name="token" value={token} />
+            <div class="form-group">
+              <label for="password">New password</label>
+              <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8" />
+            </div>
+            <div class="form-group">
+              <label for="confirm">Confirm password</label>
+              <input type="password" id="confirm" name="confirm" required autocomplete="new-password" minlength="8" />
+            </div>
+            <div id="resetError" class="form-error" hidden></div>
+            <button type="submit" class="btn btn-primary">Set new password</button>
+          </form>
+          <p class="auth-alt"><a href="/login">← Back to login</a></p>
+        </>
+      )}
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  document.getElementById('resetForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const errorEl = document.getElementById('resetError') as HTMLDivElement;
+    const btn = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const password = (form.querySelector<HTMLInputElement>('#password')!).value;
+    const confirm = (form.querySelector<HTMLInputElement>('#confirm')!).value;
+
+    errorEl.hidden = true;
+    if (password !== confirm) {
+      errorEl.textContent = 'Passwords do not match';
+      errorEl.hidden = false;
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const fd = new FormData(form);
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: fd.get('token'), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Failed to reset password';
+        errorEl.hidden = false;
+        return;
+      }
+      window.location.href = '/admin';
+    } catch {
+      errorEl.textContent = 'Network error — please try again.';
+      errorEl.hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Set new password';
+    }
+  });
+</script>

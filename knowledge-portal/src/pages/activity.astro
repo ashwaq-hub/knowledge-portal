@@ -1,0 +1,390 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { getDb, schema } from '../lib/db/index';
+import { eq, desc, sql } from 'drizzle-orm';
+import { categories } from '../config';
+
+const allEntries = await getCollection('entries');
+const entryMap = new Map(allEntries.map(e => [e.id, e]));
+
+const db = getDb();
+
+// Recent comments
+const recentComments = db
+  .select({
+    id: schema.comments.id,
+    entryId: schema.comments.entryId,
+    body: schema.comments.body,
+    createdAt: schema.comments.createdAt,
+    username: schema.users.username,
+  })
+  .from(schema.comments)
+  .leftJoin(schema.users, eq(schema.comments.userId, schema.users.id))
+  .orderBy(desc(schema.comments.createdAt))
+  .limit(20)
+  .all();
+
+// Top reacted entries
+const reactionCounts = db
+  .select({
+    entryId: schema.reactions.entryId,
+    total: sql<number>`count(*)`.as('total'),
+  })
+  .from(schema.reactions)
+  .groupBy(schema.reactions.entryId)
+  .orderBy(desc(sql<number>`count(*)`))
+  .limit(10)
+  .all();
+
+// Top bookmarked entries
+const bookmarkCounts = db
+  .select({
+    entryId: schema.bookmarks.entryId,
+    total: sql<number>`count(*)`.as('total'),
+  })
+  .from(schema.bookmarks)
+  .groupBy(schema.bookmarks.entryId)
+  .orderBy(desc(sql<number>`count(*)`))
+  .limit(10)
+  .all();
+
+// Recent entries (last 10)
+const recentEntries = [...allEntries]
+  .sort((a, b) => new Date(b.data.date_created).getTime() - new Date(a.data.date_created).getTime())
+  .slice(0, 10);
+
+function formatDate(d: Date | string): string {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function relativeTime(d: Date | string): string {
+  const ms = Date.now() - new Date(d).getTime();
+  const mins = Math.floor(ms / 60000);
+  const hours = Math.floor(ms / 3600000);
+  const days = Math.floor(ms / 86400000);
+  if (days > 30) return formatDate(d);
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (mins > 0) return `${mins}m ago`;
+  return 'just now';
+}
+
+function categoryIcon(catId: string): string {
+  return categories.find(c => c.id === catId)?.icon || '📄';
+}
+
+// Build unified activity timeline
+interface ActivityItem {
+  type: 'entry' | 'comment';
+  date: Date;
+  entryId?: string;
+  entryTitle?: string;
+  category?: string;
+  commentBody?: string;
+  commenter?: string;
+}
+
+const timeline: ActivityItem[] = [];
+
+for (const e of recentEntries) {
+  timeline.push({
+    type: 'entry',
+    date: new Date(e.data.date_created),
+    entryId: e.id,
+    entryTitle: e.data.title,
+    category: e.data.category,
+  });
+}
+
+for (const c of recentComments) {
+  const entry = entryMap.get(c.entryId);
+  timeline.push({
+    type: 'comment',
+    date: new Date(c.createdAt),
+    entryId: c.entryId,
+    entryTitle: entry?.data.title || c.entryId,
+    category: entry?.data.category,
+    commentBody: c.body.length > 120 ? c.body.slice(0, 120) + '…' : c.body,
+    commenter: c.username || 'Someone',
+  });
+}
+
+timeline.sort((a, b) => b.date.getTime() - a.date.getTime());
+const topTimeline = timeline.slice(0, 30);
+---
+
+<BaseLayout title="Activity" description="Recent activity in the knowledge portal">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">Activity</h1>
+      <p class="page-description">Recent entries, comments, and most popular content</p>
+    </header>
+
+    <div class="activity-grid">
+      <!-- Timeline -->
+      <section class="activity-timeline">
+        <h2 class="section-title">Recent activity</h2>
+        {topTimeline.length === 0 ? (
+          <p class="empty-state-text">No activity yet.</p>
+        ) : (
+          <div class="timeline">
+            {topTimeline.map(item => (
+              <div class={`timeline-item timeline-item--${item.type}`}>
+                <div class="timeline-dot">
+                  {item.type === 'entry' ? (
+                    <span>{categoryIcon(item.category || '')}</span>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                    </svg>
+                  )}
+                </div>
+                <div class="timeline-body">
+                  <div class="timeline-meta">
+                    {item.type === 'entry' ? (
+                      <span class="timeline-label timeline-label--entry">New entry</span>
+                    ) : (
+                      <span class="timeline-label timeline-label--comment">
+                        <strong>{item.commenter}</strong> commented
+                      </span>
+                    )}
+                    <span class="timeline-time">{relativeTime(item.date)}</span>
+                  </div>
+                  <a href={`/entries/${item.entryId}`} class="timeline-title">
+                    {item.entryTitle}
+                  </a>
+                  {item.commentBody && (
+                    <p class="timeline-excerpt">"{item.commentBody}"</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <!-- Sidebar -->
+      <aside class="activity-sidebar">
+        <!-- Top reacted -->
+        <section class="sidebar-section">
+          <h3 class="sidebar-section-title">Most reacted</h3>
+          {reactionCounts.length === 0 ? (
+            <p class="sidebar-empty">No reactions yet.</p>
+          ) : (
+            <ul class="rank-list">
+              {reactionCounts.map(({ entryId, total }) => {
+                const entry = entryMap.get(entryId);
+                if (!entry) return null;
+                return (
+                  <li class="rank-item">
+                    <a href={`/entries/${entryId}`} class="rank-title">{entry.data.title}</a>
+                    <span class="rank-count">🔥 {total}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <!-- Top bookmarked -->
+        <section class="sidebar-section">
+          <h3 class="sidebar-section-title">Most bookmarked</h3>
+          {bookmarkCounts.length === 0 ? (
+            <p class="sidebar-empty">No bookmarks yet.</p>
+          ) : (
+            <ul class="rank-list">
+              {bookmarkCounts.map(({ entryId, total }) => {
+                const entry = entryMap.get(entryId);
+                if (!entry) return null;
+                return (
+                  <li class="rank-item">
+                    <a href={`/entries/${entryId}`} class="rank-title">{entry.data.title}</a>
+                    <span class="rank-count">🔖 {total}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </aside>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .activity-grid {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: var(--space-8);
+    align-items: start;
+    margin-top: var(--space-6);
+  }
+
+  @media (max-width: 768px) {
+    .activity-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .section-title {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin-bottom: var(--space-5);
+    color: var(--color-text);
+  }
+
+  /* Timeline */
+  .timeline {
+    position: relative;
+    padding-left: var(--space-8);
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--color-border);
+  }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: var(--space-5);
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: calc(-1 * var(--space-8) + 4px);
+    top: 2px;
+    width: 20px;
+    height: 20px;
+    background: var(--color-bg);
+    border: 1.5px solid var(--color-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--color-text-muted);
+  }
+
+  .timeline-item--entry .timeline-dot {
+    border-color: var(--color-accent);
+    background: var(--color-accent-alpha, rgba(124,58,237,0.08));
+  }
+
+  .timeline-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+    flex-wrap: wrap;
+  }
+
+  .timeline-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .timeline-label--entry {
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+
+  .timeline-time {
+    font-size: var(--text-xs);
+    color: var(--color-text-light, var(--color-text-muted));
+    margin-left: auto;
+  }
+
+  .timeline-title {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    text-decoration: none;
+    line-height: 1.4;
+  }
+
+  .timeline-title:hover {
+    color: var(--color-accent);
+  }
+
+  .timeline-excerpt {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  .empty-state-text {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* Sidebar */
+  .activity-sidebar {
+    position: sticky;
+    top: calc(var(--space-16, 4rem) + var(--space-4));
+  }
+
+  .sidebar-section {
+    margin-bottom: var(--space-6);
+  }
+
+  .sidebar-section-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-3);
+  }
+
+  .sidebar-empty {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .rank-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .rank-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border-light, var(--color-border));
+  }
+
+  .rank-item:last-child {
+    border-bottom: none;
+  }
+
+  .rank-title {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    text-decoration: none;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .rank-title:hover {
+    color: var(--color-accent);
+  }
+
+  .rank-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+</style>

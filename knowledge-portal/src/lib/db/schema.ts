@@ -35,6 +35,7 @@ export const subscriptions = sqliteTable('subscriptions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
   frequency: text('frequency', { enum: ['immediate', 'daily', 'weekly'] }).notNull().default('weekly'),
+  lastSentAt: integer('last_sent_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
@@ -53,4 +54,22 @@ export const comments = sqliteTable('comments', {
   body: text('body').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
+export const reactions = sqliteTable('reactions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  entryId: text('entry_id').notNull(),
+  type: text('type', { enum: ['like', 'love', 'fire', 'insightful'] }).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  // Unique index (user, entryId, type) enforced by migration SQL
+});
+
+export const passwordResetTokens = sqliteTable('password_reset_tokens', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  usedAt: integer('used_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
