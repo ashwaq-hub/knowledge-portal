@@ -20,7 +20,8 @@
     "test:ui": "npx playwright test --ui",
     "test:report": "npx playwright show-report test-results/report",
     "check:all": "npm run build && npm run build:graph && npm run build:search && npm run build:rss && npx playwright test",
-    "export:all": "npm run build && npm run build:graph && npm run build:search && npm run build:rss"
+    "export:all": "npm run build && npm run build:graph && npm run build:search && npm run build:rss",
+    "cron:local": "curl -sf -X POST http://localhost:4321/api/cron/send-emails"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
